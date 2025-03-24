@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小六壬排盤計算器</title>
+  <style>
+    /* 基本樣式 */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    p, li {
+      color: #555;
+    }
+    .explanation, .position-explain {
+      background: #e8f4fd;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    .result-section {
+      margin-top: 15px;
+    }
+    /* 響應式調整 */
+    @media (max-width: 600px) {
+      .container {
+        padding: 15px;
+        margin: 10px;
+      }
+      h1 {
+        font-size: 1.5em;
+      }
+      h2 {
+        font-size: 1.2em;
+      }
+      p, li {
+        font-size: 0.9em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>小六壬排盤計算器</h1>
+    <div id="result" class="result-section">
+      <!-- 排盤結果顯示 -->
+    </div>
+    <div class="explanation" id="explanation">
+      <!-- 計算方法說明 -->
+    </div>
+    <div class="position-explain" id="positionExplain">
+      <!-- 六個位置解釋 -->
+    </div>
+  </div>
+  <script>
+    /***********************
+     * 農曆換算相關程式碼
+     * 資料來源：常見農曆換算演算法（基準日：1900/1/31，範圍1900~2050）
+     ***********************/
+    var lunarInfo = [
+      0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260,
+      0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+      0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255,
+      0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+      0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40,
+      0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+      0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0,
+      0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+      0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4,
+      0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
+      0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5d0,
+      0x14573, 0x052d0, 0x0a9a8, 0x0e950, 0x06aa0,
+      0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570,
+      0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
+      0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4,
+      0x0d250, 0x0d558, 0x0b540, 0x0b5a0, 0x195a6,
+      0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a,
+      0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
+      0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50,
+      0x06b58, 0x05ac0, 0x0ab60, 0x096d5, 0x092e0,
+      0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552,
+      0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
+      0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9,
+      0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
+      0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60,
+      0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
+      0x05aa0, 0x076a3, 0x096d0, 0x04bd7, 0x04ad0,
+      0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
+      0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577,
+      0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0
+    ];
+
+    function lunarYearDays(year) {
+      var sum = 348;
+      var info = lunarInfo[year - 1900];
+      for (var i = 0x8000; i > 0x8; i >>= 1) {
+        sum += (info & i) ? 1 : 0;
+      }
+      return sum + leapDays(year);
+    }
+
+    function leapMonth(year) {
+      return lunarInfo[year - 1900] & 0xf;
+    }
+
+    function leapDays(year) {
+      if (leapMonth(year)) {
+        return (lunarInfo[year - 1900] & 0x10000) ? 30 : 29;
+      }
+      return 0;
+    }
+
+    function monthDays(year, month) {
+      return (lunarInfo[year - 1900] & (0x10000 >> month)) ? 30 : 29;
+    }
+
+    function getLunarDate(date) {
+      var baseDate = new Date(1900, 0, 31);
+      var offset = Math.floor((date - baseDate) / 86400000);
+      var lunarYear = 1900;
+      var daysInLunarYear = lunarYearDays(lunarYear);
+      while (offset >= daysInLunarYear) {
+        offset -= daysInLunarYear;
+        lunarYear++;
+        daysInLunarYear = lunarYearDays(lunarYear);
+      }
+      var leap = leapMonth(lunarYear);
+      var isLeap = false;
+      var lunarMonth = 1;
+      var daysInLunarMonth = monthDays(lunarYear, lunarMonth);
+      while (offset >= daysInLunarMonth) {
+        offset -= daysInLunarMonth;
+        if (leap === lunarMonth && !isLeap) {
+          isLeap = true;
+          daysInLunarMonth = leapDays(lunarYear);
+        } else {
+          if (isLeap) {
+            isLeap = false;
+          }
+          lunarMonth++;
+          daysInLunarMonth = monthDays(lunarYear, lunarMonth);
+        }
+      }
+      var lunarDay = offset + 1;
+      return { lunarYear, lunarMonth, lunarDay, isLeap };
+    }
+
+    /***********************
+     * 小六壬排盤運算邏輯
+     ***********************/
+    // 六個位置依順時針排列：
+    // 大安（食指下節）、留連（食指上節）、速喜（中指上節）、空亡（中指下節）、赤口（無名指上節）、小吉（無名指下節）
+    var positions = ["大安", "留連", "速喜", "空亡", "赤口", "小吉"];
+
+    // 取得中國傳統時辰（子時跨午夜處理）
+    function getChineseHour(date) {
+      var hour = date.getHours();
+      if (hour === 23 || hour < 1) return "子時";
+      if (hour >= 1 && hour < 3) return "丑時";
+      if (hour >= 3 && hour < 5) return "寅時";
+      if (hour >= 5 && hour < 7) return "卯時";
+      if (hour >= 7 && hour < 9) return "辰時";
+      if (hour >= 9 && hour < 11) return "巳時";
+      if (hour >= 11 && hour < 13) return "午時";
+      if (hour >= 13 && hour < 15) return "未時";
+      if (hour >= 15 && hour < 17) return "申時";
+      if (hour >= 17 && hour < 19) return "酉時";
+      if (hour >= 19 && hour < 21) return "戌時";
+      if (hour >= 21 && hour < 23) return "亥時";
+      return "";
+    }
+
+    // 將時辰字串轉換成地支序號（子＝1、丑＝2、…、亥＝12）
+    function getBranchOrder(chineseHour) {
+      var branch = chineseHour.replace("時", "");
+      var branchOrder = {
+        "子": 1, "丑": 2, "寅": 3, "卯": 4,
+        "辰": 5, "巳": 6, "午": 7, "未": 8,
+        "申": 9, "酉": 10, "戌": 11, "亥": 12
+      };
+      return branchOrder[branch] || 0;
+    }
+
+	const getExplanation = (position) => {
+		switch (position) {
+			case "大安":
+				return "大安事事昌，求財在坤方，失物去不遠，宅舍保安康。行人身未動，病者主無妨，將軍回田野，仔細與推詳。";
+			case "留連":
+				return "留連事未當，求事日未光，凡事只宜緩，去者未回鄉。失物南方去，急尋方有望，行人雖未至，官事莫主張。";
+			case "速喜":
+				return "速喜喜來臨，求財向南行，失物申午未，逢人路上尋。官事有福德，病者無大驚，六畜田稼旺，行人有音信。";
+			case "赤口":
+				return "赤口主口舌，官非切要防，失物急去尋，行人有驚慌。雞犬多作怪，病者出西方，更須防咒咀，恐怕染瘟殃。";
+			case "小吉":
+				return "小吉最吉昌，路上好商量，陰人來報喜，失物在坤方。行人即便至，交關甚是強，凡事皆合意，病者保安康。";
+			case "空亡":
+				return "空亡事不祥，陰人多乖張，求財無利益，行人有災殃。失物難尋覓，官事有刑傷，病人逢暗鬼，怪夢甚驚惶。";
+			default:
+				return "";
+		}
+	};
+
+    // 小六壬排盤計算：
+    // 1. 月位：以大安為起點（代表正月），從大安起順時針移動 (農曆月 - 1) 步
+    // 2. 日位：從月位起順時針移動 (農曆日 - 1) 步
+    // 3. 時位：從日位起順時針移動 (地支序號) 步
+    function computeXiaoLiuRen() {
+      var now = new Date();
+      var lunar = getLunarDate(now);
+      var chineseHour = getChineseHour(now);
+      var branchNum = getBranchOrder(chineseHour);
+
+      // 計算月位 (正月對應大安，所以從大安起移 (農曆月 - 1) 步)
+      var monthIndex = (lunar.lunarMonth - 1) % 6;
+      var monthPosition = positions[monthIndex];
+
+      // 計算日位：從月位起移 (農曆日 - 1) 步
+      var dayIndex = (monthIndex + (lunar.lunarDay - 1)) % 6;
+      var dayPosition = positions[dayIndex];
+
+      // 計算時位：從日位起移 (地支序號) 步
+      var finalIndex = (dayIndex + branchNum) % 6;
+      var finalPosition = positions[finalIndex];
+
+	  var resultExplanation = getExplanation(finalPosition);
+
+      // 組合排盤結果字串
+      var resultHTML = `
+        <h2>排盤結果</h2>
+        <p>農曆日期：${lunar.isLeap ? "閏" : ""}${lunar.lunarMonth}月 ${lunar.lunarDay}日</p>
+        <p>時辰：${chineseHour} (地支序號：${branchNum})</p>
+        <hr>
+        <p>【月位】從大安起數 ${lunar.lunarMonth - 1} 步 → <strong>${monthPosition}</strong></p>
+        <p>【日位】從月位起數 ${lunar.lunarDay - 1} 步 → <strong>${dayPosition}</strong></p>
+        <p>【時位】從日位起數 ${branchNum} 步 → <strong>${finalPosition}</strong></p>
+		<p><strong>${finalPosition}</strong>：${resultExplanation}</p>
+      `;
+      document.getElementById("result").innerHTML = resultHTML;
+
+      // 組合計算方法說明
+      var explanationHTML = `
+        <h2>計算方法說明</h2>
+        <ol>
+          <li>以大安為起點（代表農曆正月）。</li>
+          <li>月位：從大安順時針移動 (農曆月 - 1) 步。例如，三月 → 從大安移 2 步，結果為速喜。</li>
+          <li>日位：從月位起順時針移動 (農曆日 - 1) 步。例如，初五 → 移動 4 步，結果為大安。</li>
+          <li>時位：以當前時辰的地支序號（例如辰時為 5）從日位起順時針移動該步數，得出最終位置。例如，大安起移 5 步 → 小吉。</li>
+        </ol>
+        <p>注意：此演算法僅供參考，實際排盤可能涉及更多傳統細節。</p>
+      `;
+      document.getElementById("explanation").innerHTML = explanationHTML;
+
+      // 加入六個位置的解釋說明
+      var positionExplainHTML = `
+        <h2>六個位置的解釋</h2>
+        <ul>
+          <li><strong>大安</strong>：大吉大利、平安穩定，寓意萬事順遂。</li>
+          <li><strong>留連</strong>：事物拖延或留戀，暗示有些猶豫不決或牽掛。</li>
+          <li><strong>速喜</strong>：迅速迎來喜慶，象徵好運迅速降臨，喜事臨門。</li>
+          <li><strong>空亡</strong>：虛無或空轉，可能暗示缺乏實質運勢或機會流失。</li>
+          <li><strong>赤口</strong>：易招口舌是非，可能出現爭執或意外之口角。</li>
+          <li><strong>小吉</strong>：雖非大吉，但仍有小許吉祥，屬於中性偏好的運勢。</li>
+        </ul>
+      `;
+      document.getElementById("positionExplain").innerHTML = positionExplainHTML;
+    }
+
+    window.onload = computeXiaoLiuRen;
+  </script>
+</body>
+</html>
